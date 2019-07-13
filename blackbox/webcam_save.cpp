@@ -8,6 +8,7 @@
 #include<errno.h>
 #include<unistd.h>
 #include<sys/types.h>
+#include<pwd.h>
 #include<libgen.h>
 #include<sys/vfs.h>
 
@@ -17,7 +18,7 @@ using namespace std;
 void* thread_save(void * arg);
 void* thread_delete(void * arg);
 void deleteold();
-void MakeDirectory(char *fill_path);
+void MakeDirectory(char *path);
 
 const char *MMOUNT = "/proc/mounts";
 
@@ -95,7 +96,7 @@ int dfclose(MOUNTP *MP)
 
 int main() 
 {
-	char chacha[]="/home/bit204/user/blackbox/";
+	char chacha[]="/user/blackbox/";
 	MakeDirectory(chacha);
 	//Mat img;
 
@@ -106,6 +107,8 @@ int main()
 	pthread_create(&delete_dir_id,NULL,thread_delete,NULL);
 
         while(1);
+	pthread_detach(t_id);////detatch
+	pthread_detach(delete_dir_id);
    	return 0;
 }
 
@@ -157,11 +160,12 @@ void* thread_save(void *arg)
 			if(img_color.empty()){
         	                cerr<<"empty \n";
                 	        break;
+			}
                 
 
 
 	        	        writer.write(img_color);
-				//imshow("Color",img_color);
+				imshow("Color",img_color);
 	      			timer = time(NULL);
         			t=localtime(&timer);
 				min=t->tm_min;
@@ -171,29 +175,38 @@ void* thread_save(void *arg)
 
         
 
-        		}
-		}	
+        	}
+			
 
 	}
+	return NULL;
 	
 }
 
 
 
 
-void MakeDirectory(char *full_path)
+void MakeDirectory(char *path)
 {
-	char temp[256], *sp;
+	uid_t user_id;
+	struct passwd *user_pw;
 
-	strcpy(temp, full_path); // 경로문자열을 복사
-	sp = temp; // 포인터를 문자열 처음으로
+	user_id=getuid();
+	user_pw = getpwuid(user_id);
+
+	char home[256],*sp;
+	strcpy(home,(user_pw->pw_dir));
+	
+
+	strcat(home, path); // 경로문자열을 복사
+	sp = home; // 포인터를 문자열 처음으로
 
 	while((sp = strchr(sp, '/'))) 
 	{ // 디렉토리 구분자를 찾았으면
-		if(sp > temp && *(sp - 1) != ':') 
+		if(sp > home && *(sp - 1) != ':') 
 		{ // 루트디렉토리가 아니면
 			*sp = '\0'; // 잠시 문자열 끝으로 설정
-			mkdir(temp, S_IFDIR | S_IRWXU | S_IRWXG | S_IXOTH | S_IROTH);
+			mkdir(home, S_IFDIR | S_IRWXU | S_IRWXG | S_IXOTH | S_IROTH);
 				// 디렉토리를 만들고 (존재하지 않을 때)
 			*sp = '/'; // 문자열을 원래대로 복귀
 		}
@@ -237,13 +250,14 @@ void* thread_delete(void* arg)
                 AvailPer=((double)available/(double)total_v);
                 AvailPer = AvailPer* 100;
                 printf("Total Volume : %d\t Available Volume: %d\t Available(%%)%.2f%%\n",available,total_v,AvailPer);
-                if (AvailPer<56.00)
+                if (AvailPer<30.00)
 		{
                         deleteold();
                 	printf("%d\t %d\t%.2f%%\n",available,total_v,AvailPer);
                 }
         	sleep(1);
         }
+	return NULL;
 }
 
 
